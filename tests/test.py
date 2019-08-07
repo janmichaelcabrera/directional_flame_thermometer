@@ -14,4 +14,5 @@ Tr = df.tc_2.values
 time = df.time.values
 
 sensor_1 = dft.one_dim_conduction(Tf, Tr, time, Kelvin=False)
-test = dft.natural_convection(Tf)
+test = dft.ceramic_fiber(300)
+
