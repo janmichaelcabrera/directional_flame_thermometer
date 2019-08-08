@@ -10,9 +10,9 @@ import pandas as pd
 
 df = pd.read_csv('data/1905-01_10.csv')
 Tf = df.tc_1.values
-Tr = df.tc_2.values
+Tb = df.tc_2.values
 time = df.time.values
 
-sensor_1 = dft.one_dim_conduction(Tf, Tr, time, Kelvin=False)
-test = dft.ceramic_fiber(300)
+sensor_1 = dft.one_dim_conduction(Tf, Tb, time)
 
+sensor_1.plot_results()
