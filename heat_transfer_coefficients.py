@@ -78,41 +78,56 @@ class air_props:
         return self.beta
 
 class natural_convection:
-    def __init__(self, T, Kelvin=False, orientation='horizontal'):
+    def __init__(self, T, T_infty=None, L_ch=.0762, Kelvin=False):
         if not Kelvin:
             self.T = T + 273
         else:
             self.T = T
-        self.orient = orientation
-        if self.orient == 'horizontal':
-            self.h = natural_convection.horizontal(self, self.T)
+
+        if not T_infty:
+            self.T_infty = self.T[0]
         else:
-            self.h = natural_convection.vertical(self, self.T)
+            self.T_infty = T_infty
 
-    def horizontal(self, Temp):
+        self.L_ch = L_ch
+
+    def horizontal(self):
+        # self.h = 4.753E-12*Temp**5 - 1.303E-08*Temp**4 + 1.418E-05*Temp**3 - 7.675E-03*Temp**2 + 2.076E+00*Temp - 2.145E+02
+        C = 0.54
+        n = 0.25
+        air = air_props(self.T)
+        Ra = 9.81*air.beta*(self.T - self.T_infty)*self.L_ch**3/(air.nu*air.alpha)
+        Nu = C*Ra**n
+        self.h = Nu*air.k/self.L_ch
+        return self.h
+
+    def vertical(self):
         self.h = 4.753E-12*Temp**5 - 1.303E-08*Temp**4 + 1.418E-05*Temp**3 - 7.675E-03*Temp**2 + 2.076E+00*Temp - 2.145E+02
         return self.h
 
-    def vertical(self, Temp):
-        self.h = 4.753E-12*Temp**5 - 1.303E-08*Temp**4 + 1.418E-05*Temp**3 - 7.675E-03*Temp**2 + 2.076E+00*Temp - 2.145E+02
+    def custom(self, C, n):
+        air = air_props(self.T)
+        Ra = 9.81*air.beta*(self.T - self.T_infty)*self.L_ch**3/(air.nu*air.alpha)
+        Nu = C*Ra**n
+        self.h = Nu*air.k/self.L_ch
         return self.h
 
-#     def custom(self, C, n, T_infty, L_ch=1):
-#         air = air_props(self.T)
-#         Ra = 9.81*air_props.beta*(self.T - T_infty)*L_ch**3/(self.nu*self.alpha)
-#         Nu = C*Ra**n
-#         self.h = Nu*air.k/L_ch
-#         return self.h
+class forced_convection:
+    def __init__(self, T, T_infty=None, L_ch=.0762, Kelvin=False):
+        if not Kelvin:
+            self.T = T + 273
+        else:
+            self.T = T
 
-# class forced_convection:
-#     def __init__(self, T, Kelvin=False):
-#         if not Kelvin:
-#             self.T = T + 273
-#         else:
-#             self.T = T
+        if not T_infty:
+            self.T_infty = self.T[0]
+        else:
+            self.T_infty = T_infty
 
-#     def custom(self, C, m, n, Re, L_ch=1):
-#         air = air_props(self.T)
-#         Nu = C*Re**m*air.Pr**n
-#         self.h = Nu*air.k/L_ch
-#         return self.h
+        self.L_ch = L_ch
+
+    def custom(self, C, m, n, Re):
+        air = air_props(self.T)
+        Nu = C*Re**m*air.Pr**n
+        self.h = Nu*air.k/self.L_ch
+        return self.h

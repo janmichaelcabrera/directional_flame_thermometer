@@ -31,7 +31,7 @@ class physical_models:
     #     np.save(out_directory+self.name+)
 
 class one_dim_conduction(physical_models):
-    def __init__(self, T_f, T_b, time, Kelvin=False, L_i=0.019, plate_thickness=0.0016, plate_material=stainless_steel, h=natural_convection, T_inf=None, T_sur=None, nodes=10, run_on_init=True, *args, **kwargs):
+    def __init__(self, T_f, T_b, time, h_f, h_b, Kelvin=False, L_i=0.019, plate_thickness=0.0016, plate_material=stainless_steel, insulation=ceramic_fiber, T_inf=None, T_sur=None, nodes=10, run_on_init=True, *args, **kwargs):
         self.Kelvin = Kelvin
         if not Kelvin:
             self.T_f = T_f + 273
@@ -44,7 +44,9 @@ class one_dim_conduction(physical_models):
         self.plate_thickness = plate_thickness
         self.plate_material = plate_material
         self.L_i = L_i
-        self.h = h
+        self.h_f = h_f
+        self.h_b = h_b
+        self.insulation_material = insulation
         self.nodes = nodes
 
         if not T_inf:
@@ -62,27 +64,25 @@ class one_dim_conduction(physical_models):
         self.back_plate = self.plate_material(self.T_b)
 
         ### Insulation
-        self.insul = ceramic_fiber(self.T_inf)
+        self.insul = self.insulation_material(self.T_inf)
 
 
         if run_on_init:
-            self.q_inc = one_dim_conduction.run_model(self)
+            self.q_inc = one_dim_conduction.incident_heat_flux(self)
 
-    def run_model(self):
-        one_dim_conduction.net_heat_flux(self)
-        h_f = self.h((self.T_f + self.T_inf)/2)
-        h_b = self.h((self.T_b + self.T_inf)/2)
+    def incident_heat_flux(self):
+        one_dim_conduction.one_d_conduction(self)
 
-        self.q_conv = (h_f.h * (self.T_f - self.T_inf) + h_b.h * (self.T_b - self.T_inf))/1000
+        self.q_conv = (self.h_f * (self.T_f - self.T_inf) + self.h_b * (self.T_b - self.T_inf))/1000
 
         self.q_rad = (sigma * self.front_plate.epsilon * (self.T_f**4 - self.T_sur**4) + sigma * self.back_plate.epsilon * (self.T_b**4 - self.T_sur**4))/1000
 
         self.q_inc = 1/self.front_plate.epsilon*(self.q_net + self.q_rad + self.q_conv)
         return self.q_inc
 
-    def net_heat_flux(self):
+    def one_d_conduction(self):
         
-        def construct_banded_matrix(Fo=5, nodes=10, inv=True):
+        def construct_banded_matrix(Fo=5, nodes=10):
             """
             Inputs
             ----------
@@ -109,10 +109,7 @@ class one_dim_conduction(physical_models):
 
             A = diags(k, offset).toarray()
 
-            if inv:
-                return linalg.inv(A)
-            else:
-                return A
+            return linalg.inv(A)
 
         # # Instantiate implicit model parameters
         delta_x = self.L_i/(self.nodes+1)
@@ -124,7 +121,7 @@ class one_dim_conduction(physical_models):
         # Insulation Fourrier number
         Fo_i = delta_t*self.insul.alpha/delta_x**2
         # Insulation implicit matrix construction and inversion
-        A_i_inv = construct_banded_matrix(Fo=Fo_i, nodes=self.nodes, inv=True)
+        A_i_inv = construct_banded_matrix(Fo=Fo_i, nodes=self.nodes)
 
         # Loop over time
         for t in range(time_steps-1):
@@ -150,3 +147,5 @@ class one_dim_conduction(physical_models):
         self.q_net = (self.q_st_f + self.q_st_ins + self.q_st_b)/1000
 
         return self.q_net
+
+# see if can use getattr to run proper method
