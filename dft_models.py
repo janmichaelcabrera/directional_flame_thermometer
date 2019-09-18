@@ -15,10 +15,18 @@ style.use(['seaborn'])
 sigma = 5.6704E-8
 
 class physical_models:
+    """
+    Common methods among physical models
+    """
     def __init__(self, *args, **kwargs):
         super(physical_models, self).__init__(*args, **kwargs)
 
     def plot_net(self, out_directory=None, *args):
+        """
+        Notes
+        ----------
+            This method plots the net heat flux to the DFT
+        """
         ax = plt.subplot(111)
         plt.plot(self.time, self.q_net, label='Net Flux')
         plt.xlabel('Time (s)')
@@ -38,6 +46,11 @@ class physical_models:
             plt.close()
 
     def plot_components(self, out_directory=None, *args):
+        """
+        Notes
+        ----------
+            This method plots the relevant heat flux components for determining the incident heat flux for a given model
+        """
         ax = plt.subplot(111)
         plt.plot(self.time, self.q_inc, label='Incident Flux')
         plt.plot(self.time, self.q_net, label='Net Flux')
@@ -66,6 +79,11 @@ class physical_models:
             plt.close()
 
     def plot_incident(self, out_directory=None, *args):
+        """
+        Notes
+        ----------
+            This method plots the incident heat flux to a DFT for a given model
+        """
         ax = plt.subplot(111)
         plt.plot(self.time, self.q_inc, label='Incident Flux')
         plt.xlabel('Time (s)')
@@ -88,6 +106,16 @@ class physical_models:
         return 0
 
     def save_output(self, out_directory=None):
+        """
+        Parameters
+        ----------
+            out_directory: str
+                Directory to where model results will be saved
+
+        Notes
+        ----------
+            This method saves the output from the model to a csv file
+        """
         if out_directory:
             if os.path.isdir(out_directory) == True:
                 pass
@@ -101,6 +129,54 @@ class physical_models:
 
 class one_dim_conduction(physical_models):
     def __init__(self, T_f, T_b, time, h_f, h_b, model='one_d_conduction', Kelvin=False, L_i=0.019, plate_thickness=0.0016, plate_material=stainless_steel, insulation=ceramic_fiber, T_inf=None, T_sur=None, nodes=10, run_on_init=True, *args, **kwargs):
+        """
+        Parameters
+        ----------
+            T_f: array like
+                Front plate temperature history of a DFT
+
+            T_b: array like
+                Back plate temperature history of a DFT
+
+            time: array like
+                Time vector pertaining to the temperature history of a DFT
+
+            h_f: float, array like
+                Scalar or vector of heat transfer coefficients in W/m^2-K for the front plate
+
+            h_b: float, array like
+                Scalar or vector of heat transfer coefficients in W/m^2-K for the back plate
+
+            model: str
+                Type of model to use for determining the net heat flux. Available: one_d_conduction, energy_storage_method, semi_infinite
+
+            Kelvin: bool (optional)
+                Whether or not the temperatures are in Celsius or Kelvin. If in Celsius, the data is converted to Kelvin
+
+            L_i: float (optional)
+                Insulation thickness in meters
+
+            plate_thickness: float (optional)
+                Front and back plate thickness in meters
+
+            plate_material: obj (optional)
+                Plate material object with necessary parameters for determining net heat flux
+
+            insulation: obj (optional)
+                Insulation material object with necessary parameters for determining net heat flux
+
+            T_inf: float or array like (optional)
+                Temperature of the fluid 'far' from the DFT. If not provided, T_inf is assumed to be constant and equal to the temperature at the beginning of the array. 
+
+            T_sur: float or array like (optional)
+                Temperature of the surroundings 'far' from the DFT. If not provided, T_sur is assumed to be constant and equal to the temperature at the beginning of the array
+
+            nodes: int (optional)
+                Number of nodes for finite difference one_d_conduction method
+
+            run_on_init: bool (optional)
+                Whether or not to run the model to obtain q_inc on initialization
+        """
         self.Kelvin = Kelvin
         if not Kelvin:
             self.T_f = T_f + 273
@@ -141,6 +217,17 @@ class one_dim_conduction(physical_models):
             self.q_inc = one_dim_conduction.incident_heat_flux(self)
 
     def incident_heat_flux(self):
+        """
+        Notes
+        ----------
+            Calls one of the availbe methods for q_net and also determines q_inc based on:
+                ..math : q_{inc} = \\frac{1}{\\epsilon}(q_{net} + q_{rad} + q_{conv})
+
+        Returns
+        ----------
+            q_inc: array like
+                Incident heat flux to the DFT
+        """
         getattr(one_dim_conduction, self.model)(self)
 
         self.q_conv = (self.h_f * (self.T_f - self.T_inf) + self.h_b * (self.T_b - self.T_inf))/1000
@@ -151,7 +238,18 @@ class one_dim_conduction(physical_models):
         return self.q_inc
 
     def one_d_conduction(self):
-        
+        """
+        Returns
+        ----------
+            q_net: array like
+                The net heat flux to the DFT based on a finite difference implicit method:
+                    ..math : q_{net} = q_{st,f} + q_{st,b} + q_{st, ins}
+                    ..math : q_{st,f} = \\rho_p c_p l_p \\frac{dT_f}{dt}
+                    ..math : q_{st,b} = \\rho_p c_p l_p \\frac{dT_b}{dt}
+                    ..math : q_{st, ins} = q_{in} - q_{out}; q_{in} = -k \\frac{dT_f}{dx}; q_{out} = -k \\frac{dT_b}{dx}
+                    ..math : \\frac{\\partial T}{\\partial t} = \\alpha \\frac{\\partial^2 T}{\\partial x^2}
+                    ..math : T(x, t=0) = T_0, T(x=0, t) = T_f, T(x=L_i, t) = T_b
+        """
         def construct_banded_matrix(Fo=5, nodes=10):
             """
             Inputs
@@ -168,10 +266,7 @@ class one_dim_conduction(physical_models):
             Returns
             ----------
                 A^{-1}: array
-                    Inverse of constructed banded matrix of size nodes by nodes if inv==True
-
-                A: array
-                    Banded matrix of size nodes by nodes if inv!=True
+                    Inverse of constructed banded matrix of size nodes by nodes
             """
             k = np.array([np.ones(nodes-1)*(-Fo), np.ones(nodes)*(1+2*Fo), np.ones(nodes-1)*(-Fo)])
 
@@ -181,7 +276,7 @@ class one_dim_conduction(physical_models):
 
             return linalg.inv(A)
 
-        # # Instantiate implicit model parameters
+        # Instantiate implicit model parameters
         delta_x = self.L_i/(self.nodes+1)
         time_steps = len(self.time)
         T_nodes_i = np.ones((time_steps, self.nodes))*self.T_inf
@@ -219,11 +314,26 @@ class one_dim_conduction(physical_models):
         return self.q_net
 
     def energy_storage_method(self):
+        """
+        Returns
+        -----------
+            q_net: array like
+                The net heat flux to the DFT based on the energy storage method, ASTM E3057
+                .. math : q_{net} = \\rho_p \\c_p \\frac{dT_f}{dt} + \\frac{k_{ins}(T_f - T_b)}{L_i} + \\rho_i c_i \\frac{dT_{ins}}{dt}
+        """
         T_ins = (self.T_f + self.T_b)/2
-        self.q_net = (self.front_plate.rCp*self.plate_thickness*np.gradient(self.T_f, self.time) + self.insul.k*(self.T_f - self.T_b)/self.L_i + self.front_plate.rCp*self.plate_thickness*np.gradient(T_ins, self.time))/1000
+        self.q_net = (self.front_plate.rCp*self.plate_thickness*np.gradient(self.T_f, self.time) + self.insul.k*(self.T_f - self.T_b)/self.L_i + self.insul.rCp*self.L_i*np.gradient(T_ins, self.time))/1000
         return self.q_net
 
     def semi_infinite(self):
+        """
+        Returns
+        ----------
+            q_net: array like
+                The net heat flux to the DFT based on a semi infinite approximation to heat transfer within the insulation
+                .. math: q_{net} = q_{st,f} + q_{ins}
+                .. math: q_{ins} = \\left( \\frac{k_i \\rho_i c_i}{\\pi} \\right)^2 \\int_0^t \\frac{dT_f(\\lambda)}{d \\lambda} \\frac{d \\lambda}{\\sqrt{t - \\lambda}}
+        """
         self.q_st_f = (self.front_plate.rCp * self.plate_thickness * np.gradient(self.T_f, self.time))/1000
         self.q_st_ins = np.zeros(len(self.time))
         dT = np.gradient(self.T_f[1:], self.time[1:])

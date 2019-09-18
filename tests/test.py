@@ -22,9 +22,9 @@ h_f.custom(C, n)
 h_b = dft.natural_convection(Tb)
 h_b.custom(C, n)
 
-sensor_1 = dft.one_dim_conduction(Tf, Tb, time, h_f.h, h_b.h)
+sensor_1 = dft.one_dim_conduction(Tf, Tb, time, h_f.h, h_b.h, model='one_d_conduction')
 
-# sensor_1.plot_components()
+sensor_1.plot_components()
 # sensor_1.save_output(out_directory='data/')
 
 # sensor_1.plot_components()

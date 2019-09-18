@@ -5,6 +5,16 @@ import numpy as np
 
 class air_props:
     def __init__(self, T, Kelvin=False):
+        """
+        Parameters
+        ----------
+            T: float, array like
+                Temperature at which air properties will be evaluated at
+
+            Kelvin: bool
+                Whether or not the temperatures are in Celsius or Kelvin. If in Celsius, the data is converted to Kelvin
+
+        """
         if not Kelvin:
             self.T = T + 273
         else:
@@ -79,6 +89,21 @@ class air_props:
 
 class natural_convection:
     def __init__(self, T, T_infty=None, L_ch=.0762, Kelvin=False):
+        """
+        Parameters
+        ----------
+            T: float, array like
+                Temperature at which air properties will be evaluated at
+
+            Kelvin: bool (optional)
+                Whether or not the temperatures are in Celsius or Kelvin. If in Celsius, the data is converted to Kelvin
+
+            T_infty: float or array like (optional)
+                Temperature of the fluid 'far' from the DFT. If not provided, T_inf is assumed to be constant and equal to the temperature at the beginning of the array. 
+
+            L_ch: float (optional)
+                Characteristic length for determining heat transfer coefficients
+        """
         if not Kelvin:
             self.T = T + 273
         else:
@@ -114,6 +139,21 @@ class natural_convection:
 
 class forced_convection:
     def __init__(self, T, T_infty=None, L_ch=.0762, Kelvin=False):
+        """
+        Parameters
+        ----------
+            T: float, array like
+                Temperature at which air properties will be evaluated at
+
+            Kelvin: bool (optional)
+                Whether or not the temperatures are in Celsius or Kelvin. If in Celsius, the data is converted to Kelvin
+
+            T_infty: float or array like (optional)
+                Temperature of the fluid 'far' from the DFT. If not provided, T_inf is assumed to be constant and equal to the temperature at the beginning of the array. 
+
+            L_ch: float (optional)
+                Characteristic length for determining heat transfer coefficients
+        """
         if not Kelvin:
             self.T = T + 273
         else:
