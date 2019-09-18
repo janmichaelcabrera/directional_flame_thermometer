@@ -2,11 +2,14 @@
 
 from __future__ import division
 import numpy as np
+import os, sys
 import matplotlib.pyplot as plt
 from scipy.sparse import diags
 from scipy import linalg
+import matplotlib.style as style
 from .dft_properties import *
 from .heat_transfer_coefficients import *
+style.use(['seaborn'])
 
 # Stefan-Boltzman constant (W/m2K4)
 sigma = 5.6704E-8
@@ -15,23 +18,89 @@ class physical_models:
     def __init__(self, *args, **kwargs):
         super(physical_models, self).__init__(*args, **kwargs)
 
-    def plot_results(self):
-        plt.figure()
-        plt.plot(self.time, self.q_inc)
-        plt.show()
-        return 0
+    def plot_net(self, out_directory=None, *args):
+        ax = plt.subplot(111)
+        plt.plot(self.time, self.q_net, label='Net Flux')
+        plt.xlabel('Time (s)')
+        plt.ylabel('Heat Flux (kW/m$^2$)')
+        box = ax.get_position()
+        ax.set_position([box.x0, box.y0, box.width*0.8, box.height])
+        ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+        if not out_directory:
+            plt.show()
+            plt.close()
+        else:
+            if os.path.isdir(out_directory) == True:
+                pass
+            else:
+                os.mkdir(out_directory)
+            plt.savefig(out_directory+'net_heat_flux.pdf')
+            plt.close()
+
+    def plot_components(self, out_directory=None, *args):
+        ax = plt.subplot(111)
+        plt.plot(self.time, self.q_inc, label='Incident Flux')
+        plt.plot(self.time, self.q_net, label='Net Flux')
+        if hasattr(self, 'q_st_f'):
+            plt.plot(self.time, self.q_st_f, label='Front Stored')
+        if hasattr(self, 'q_st_b'):
+            plt.plot(self.time, self.q_st_b, label='Back Stored')
+        if hasattr(self, 'q_st_ins'):
+            plt.plot(self.time, self.q_st_ins, label='Insul Stored')
+        plt.plot(self.time, self.q_conv, label='Convective Flux')
+        plt.plot(self.time, self.q_rad, label='Radiative Flux')
+        plt.xlabel('Time (s)')
+        plt.ylabel('Heat Flux (kW/m$^2$)')
+        box = ax.get_position()
+        ax.set_position([box.x0, box.y0, box.width*0.8, box.height])
+        ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+        if not out_directory:
+            plt.show()
+            plt.close()
+        else:
+            if os.path.isdir(out_directory) == True:
+                pass
+            else:
+                os.mkdir(out_directory)
+            plt.savefig(out_directory+'component_heat_flux.pdf')
+            plt.close()
+
+    def plot_incident(self, out_directory=None, *args):
+        ax = plt.subplot(111)
+        plt.plot(self.time, self.q_inc, label='Incident Flux')
+        plt.xlabel('Time (s)')
+        plt.ylabel('Heat Flux (kW/m$^2$)')
+        box = ax.get_position()
+        ax.set_position([box.x0, box.y0, box.width*0.8, box.height])
+        ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+        if not out_directory:
+            plt.show()
+            plt.close()
+        else:
+            if os.path.isdir(out_directory) == True:
+                pass
+            else:
+                os.mkdir(out_directory)
+            plt.savefig(out_directory+'incident_heat_flux.pdf')
+            plt.close()
 
     def plot_uncertainties(self):
         return 0
 
     def save_output(self, out_directory=None):
-        return 0
-    #     if os.path.isdir(out_directory) == True: pass
-    #     else: os.mkdir(out_directory)
-    #     np.save(out_directory+self.name+)
+        if out_directory:
+            if os.path.isdir(out_directory) == True:
+                pass
+            else:
+                os.mkdir(out_directory)
+            X = np.array([self.time, self.q_inc, self.q_net, self.q_conv, self.q_rad]).T
+            header = 'Time (s), q_inc (kW/m2), q_net (kW/m2), q_conv (kW/m2), q_rad (kW/m2)'
+            np.savetxt(out_directory+'heat_fluxes.csv', X, delimiter=',', header=header)
+        else:
+            raise NameError('Output directory not specified. Data not saved.')    
 
 class one_dim_conduction(physical_models):
-    def __init__(self, T_f, T_b, time, h_f, h_b, Kelvin=False, L_i=0.019, plate_thickness=0.0016, plate_material=stainless_steel, insulation=ceramic_fiber, T_inf=None, T_sur=None, nodes=10, run_on_init=True, *args, **kwargs):
+    def __init__(self, T_f, T_b, time, h_f, h_b, model='one_d_conduction', Kelvin=False, L_i=0.019, plate_thickness=0.0016, plate_material=stainless_steel, insulation=ceramic_fiber, T_inf=None, T_sur=None, nodes=10, run_on_init=True, *args, **kwargs):
         self.Kelvin = Kelvin
         if not Kelvin:
             self.T_f = T_f + 273
@@ -41,11 +110,12 @@ class one_dim_conduction(physical_models):
             self.T_b = T_b
 
         self.time = time
+        self.h_f = h_f
+        self.h_b = h_b
+        self.model = model
         self.plate_thickness = plate_thickness
         self.plate_material = plate_material
         self.L_i = L_i
-        self.h_f = h_f
-        self.h_b = h_b
         self.insulation_material = insulation
         self.nodes = nodes
 
@@ -71,7 +141,7 @@ class one_dim_conduction(physical_models):
             self.q_inc = one_dim_conduction.incident_heat_flux(self)
 
     def incident_heat_flux(self):
-        one_dim_conduction.one_d_conduction(self)
+        getattr(one_dim_conduction, self.model)(self)
 
         self.q_conv = (self.h_f * (self.T_f - self.T_inf) + self.h_b * (self.T_b - self.T_inf))/1000
 
@@ -138,14 +208,27 @@ class one_dim_conduction(physical_models):
         q_cond_if = -self.insul.k*(T_nodes_i[:,0] - self.T_f)/delta_x
         q_cond_ib = -self.insul.k*(T_nodes_i[:,-1] - self.T_b)/delta_x
 
-        self.q_st_ins = q_cond_if - q_cond_ib
+        self.q_st_ins = (q_cond_if - q_cond_ib)/1000
 
-        self.q_st_f = self.front_plate.rCp * self.plate_thickness * np.gradient(self.T_f, self.time)
+        self.q_st_f = (self.front_plate.rCp * self.plate_thickness * np.gradient(self.T_f, self.time))/1000
 
-        self.q_st_b = self.back_plate.rCp * self.plate_thickness * np.gradient(self.T_b, self.time)
+        self.q_st_b = (self.back_plate.rCp * self.plate_thickness * np.gradient(self.T_b, self.time))/1000
 
-        self.q_net = (self.q_st_f + self.q_st_ins + self.q_st_b)/1000
+        self.q_net = self.q_st_f + self.q_st_ins + self.q_st_b
 
         return self.q_net
 
-# see if can use getattr to run proper method
+    def energy_storage_method(self):
+        T_ins = (self.T_f + self.T_b)/2
+        self.q_net = (self.front_plate.rCp*self.plate_thickness*np.gradient(self.T_f, self.time) + self.insul.k*(self.T_f - self.T_b)/self.L_i + self.front_plate.rCp*self.plate_thickness*np.gradient(T_ins, self.time))/1000
+        return self.q_net
+
+    def semi_infinite(self):
+        self.q_st_f = (self.front_plate.rCp * self.plate_thickness * np.gradient(self.T_f, self.time))/1000
+        self.q_st_ins = np.zeros(len(self.time))
+        dT = np.gradient(self.T_f[1:], self.time[1:])
+        dt = self.time[1] - self.time[0]
+        F1 = 1/np.sqrt(self.time[1:])
+        self.q_st_ins[1:] = (np.sqrt((self.insul.k*self.insul.rCp)/np.pi)*np.convolve(dT, F1)[:len(dT)]*dt)/1000
+        self.q_net = self.q_st_f + self.q_st_ins
+        return self.q_net

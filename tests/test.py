@@ -13,16 +13,18 @@ Tf = df.tc_1.values
 Tb = df.tc_2.values
 time = df.time.values
 
+C = 0.54
+n = 0.25
+
 h_f = dft.natural_convection(Tf)
-# h_f.custom(0.54, 0.25)
-h_f.horizontal()
+h_f.custom(C, n)
 
 h_b = dft.natural_convection(Tb)
-# h_b.custom(0.54, 0.25)
-h_b.horizontal()
+h_b.custom(C, n)
 
 sensor_1 = dft.one_dim_conduction(Tf, Tb, time, h_f.h, h_b.h)
 
-# Pass the ceramic fiber and steel similarly to how it was done for the heat transfer coefficient
+# sensor_1.plot_components()
+# sensor_1.save_output(out_directory='data/')
 
-# This should allow you to change the attributes within a method for later uncertainty quantification and sensitivity analysis
+# sensor_1.plot_components()
