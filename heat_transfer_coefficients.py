@@ -117,7 +117,14 @@ class natural_convection:
         self.L_ch = L_ch
 
     def horizontal(self):
-        # self.h = 4.753E-12*Temp**5 - 1.303E-08*Temp**4 + 1.418E-05*Temp**3 - 7.675E-03*Temp**2 + 2.076E+00*Temp - 2.145E+02
+        """
+        Returns
+        ----------
+            h: float, array like
+                Heat transfer coefficient in W/m^2-K
+                .. math : Nu = 0.54 Ra^0.25
+                .. math : h = \\frac{k_{air} Nu}{L_{ch}}
+        """
         C = 0.54
         n = 0.25
         air = air_props(self.T)
@@ -127,10 +134,36 @@ class natural_convection:
         return self.h
 
     def vertical(self):
-        self.h = 4.753E-12*Temp**5 - 1.303E-08*Temp**4 + 1.418E-05*Temp**3 - 7.675E-03*Temp**2 + 2.076E+00*Temp - 2.145E+02
+        """
+        Returns
+        ----------
+            h: float, array like
+                Heat transfer coefficient in W/m^2-K
+                .. math : Nu = 0.68 + (0.67 Ra^0.25)/(1 + (0.492/air.Pr)^{9/16})^{4/9}
+                .. math : h = \\frac{k_{air} Nu}{L_{ch}}
+        """
+        air = air_props(self.T)
+        Ra = 9.81*air.beta*(self.T - self.T_infty)*self.L_ch**3/(air.nu*air.alpha)
+        Nu = 0.68 + (0.67*Ra**0.25)/(1 + (0.492/air.Pr)**(9/16))**(4/9)
+        self.h = Nu*air.k/self.L_ch
         return self.h
 
     def custom(self, C, n):
+        """
+        Parameters
+        ----------
+            C: float
+                Correlation constant
+
+            n: float
+                Correlation exponent
+        Returns
+        ----------
+            h: float, array like
+                Heat transfer coefficient in W/m^2-K
+                .. math : Nu = C Ra^n
+                .. math : h = \\frac{k_{air} Nu}{L_{ch}}
+        """
         air = air_props(self.T)
         Ra = 9.81*air.beta*(self.T - self.T_infty)*self.L_ch**3/(air.nu*air.alpha)
         Nu = C*Ra**n
@@ -167,6 +200,24 @@ class forced_convection:
         self.L_ch = L_ch
 
     def custom(self, C, m, n, Re):
+        """
+        Parameters
+        ----------
+            C: float
+                Correlation constant
+
+            n: float
+                Correlation exponent
+
+            m: float
+                Correlation exponent
+        Returns
+        ----------
+            h: float, array like
+                Heat transfer coefficient in W/m^2-K
+                .. math : Nu = C Re^m Pr^n
+                .. math : h = \\frac{k_{air} Nu}{L_{ch}}
+        """
         air = air_props(self.T)
         Nu = C*Re**m*air.Pr**n
         self.h = Nu*air.k/self.L_ch
