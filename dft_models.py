@@ -21,6 +21,31 @@ class physical_models:
     def __init__(self, *args, **kwargs):
         super(physical_models, self).__init__(*args, **kwargs)
 
+    def plot_temps(self, out_directory=None, *args):
+        """
+        Notes
+        ----------
+            This method plots the DFT temperatures
+        """
+        ax = plt.subplot(111)
+        plt.plot(self.time, self.T_f, label='Front Plate Temperature')
+        plt.plot(self.time, self.T_b, label='Back Plate Temperature')
+        plt.xlabel('Time (s)')
+        plt.ylabel('Temperature (K)')
+        box = ax.get_position()
+        ax.set_position([box.x0, box.y0, box.width*0.8, box.height])
+        ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+        if not out_directory:
+            plt.show()
+            plt.close()
+        else:
+            if os.path.isdir(out_directory) == True:
+                pass
+            else:
+                os.mkdir(out_directory)
+            plt.savefig(out_directory+'temperatures.pdf')
+            plt.close()
+
     def plot_net(self, out_directory=None, *args):
         """
         Notes

@@ -131,6 +131,7 @@ class natural_convection:
         Ra = 9.81*air.beta*(self.T - self.T_infty)*self.L_ch**3/(air.nu*air.alpha)
         Nu = C*Ra**n
         self.h = Nu*air.k/self.L_ch
+        self.h[np.isnan(self.h)] = 0
         return self.h
 
     def vertical(self):
@@ -146,6 +147,7 @@ class natural_convection:
         Ra = 9.81*air.beta*(self.T - self.T_infty)*self.L_ch**3/(air.nu*air.alpha)
         Nu = 0.68 + (0.67*Ra**0.25)/(1 + (0.492/air.Pr)**(9/16))**(4/9)
         self.h = Nu*air.k/self.L_ch
+        self.h[np.isnan(self.h)] = 0
         return self.h
 
     def custom(self, C, n):
@@ -168,6 +170,7 @@ class natural_convection:
         Ra = 9.81*air.beta*(self.T - self.T_infty)*self.L_ch**3/(air.nu*air.alpha)
         Nu = C*Ra**n
         self.h = Nu*air.k/self.L_ch
+        self.h[np.isnan(self.h)] = 0
         return self.h
 
 class forced_convection:
@@ -221,4 +224,5 @@ class forced_convection:
         air = air_props(self.T)
         Nu = C*Re**m*air.Pr**n
         self.h = Nu*air.k/self.L_ch
+        self.h[np.isnan(self.h)] = 0
         return self.h

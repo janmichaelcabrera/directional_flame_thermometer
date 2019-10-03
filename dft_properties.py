@@ -4,7 +4,7 @@ from __future__ import division
 import numpy as np
 
 class stainless_steel:
-    def __init__(self, T, epsilon=0.9, *args, **kwargs):
+    def __init__(self, T, epsilon=0.94, *args, **kwargs):
         self.T = T
         self.rCp = stainless_steel.volumetric_heat_capacity(self, self.T)
         self.epsilon = epsilon
@@ -59,7 +59,7 @@ class ceramic_fiber:
 
         Returns
         ----------
-            Rho times heat of steel (kg J/m^3-K)
+            Thermal conductivity in W/m-K
 
         """
         self.k = 7.36E-17*Temp**5 - 3.02E-13*Temp**4 + 4.87E-10*Temp**3 - 2.35E-07*Temp**2 + 1.43E-04*Temp + 3.11E-03
