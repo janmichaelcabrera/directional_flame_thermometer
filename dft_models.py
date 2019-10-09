@@ -21,6 +21,56 @@ class physical_models:
     def __init__(self, *args, **kwargs):
         super(physical_models, self).__init__(*args, **kwargs)
 
+    def sensitivity_coefficients(self, hf, hb):
+        multiplier = 0.1
+        sigma_eps = self.front_plate.epsilon*multiplier
+        sigma_C = hf.C*multiplier
+        sigma_n = hf.n*multiplier
+        sigma_k = self.insul.k*multiplier
+        sigma_rcpf = self.front_plate.rCp*multiplier
+        sigma_rcpb = self.back_plate.rCp*multiplier
+        sigma_l = self.plate_thickness*multiplier
+
+
+        self.dq_deps = - self.front_plate.epsilon**(-2) * ((self.q_net + self.q_conv)*1000)
+        self.dq_dC = 1/(hf.C * self.front_plate.epsilon) * (self.q_conv*1000)
+        self.dq_dn = hf.n/(self.front_plate.epsilon*hf.Ra) * (self.q_conv_f*1000) + hb.n/(self.back_plate.epsilon*hb.Ra) * (self.q_conv_b*1000)
+        self.dq_dn[np.isnan(self.dq_dn)] = 0
+        self.dq_dk = 1/(self.insul.k*self.front_plate.epsilon) * (self.q_st_ins*1000)
+        self.dq_drcpf = 1/(self.front_plate.epsilon * self.front_plate.rCp) * (self.q_st_f*1000)
+        self.dq_drcpb = 1/(self.back_plate.epsilon * self.back_plate.rCp) * (self.q_st_b*1000)
+        self.dq_dl = 1/(self.back_plate.epsilon*self.plate_thickness) * ((self.q_st_f + self.q_st_b)*1000)
+
+        W_eps = (self.dq_deps*sigma_eps)**2
+        W_C = (self.dq_dC*sigma_C)**2
+        W_n = (self.dq_dn*sigma_n)**2
+        W_k = (self.dq_dk*sigma_k)**2
+        W_rcpf = (self.dq_drcpf*sigma_rcpf)**2
+        W_rcpb = (self.dq_drcpb*sigma_rcpb)**2
+        W_l = (self.dq_dl*sigma_l)**2
+
+        W = W_eps + W_C + W_n + W_k + W_rcpf + W_rcpb + W_l
+
+        S_eps = (self.dq_deps*sigma_eps)**2/W
+        S_C = (self.dq_dC*sigma_C)**2/W
+        S_n = (self.dq_dn*sigma_n)**2/W
+        S_k = (self.dq_dk*sigma_k)**2/W
+        S_rcpf = (self.dq_drcpf*sigma_rcpf)**2/W
+        S_rcpb = (self.dq_drcpb*sigma_rcpb)**2/W
+        S_l = (self.dq_dl*sigma_l)**2/W
+
+        
+        plt.figure()
+        plt.plot(S_eps, label='dq_deps')
+        plt.plot(S_C, label='dq_dC')
+        plt.plot(S_n, label='dq_dn')
+        plt.plot(S_k, label='dq_dk')
+        plt.plot(S_rcpf , label='dq_drcpf')
+        plt.plot(S_rcpb, label='dq_drcpb')
+        plt.plot(S_l, '--', label='dq_dl')
+        plt.legend(loc=0)
+        plt.show()
+
     def plot_temps(self, out_directory=None, *args):
         """
         Notes
@@ -237,7 +287,6 @@ class one_dim_conduction(physical_models):
         ### Insulation
         self.insul = self.insulation_material(self.T_inf)
 
-
         if run_on_init:
             self.q_inc = one_dim_conduction.incident_heat_flux(self)
 
@@ -255,7 +304,10 @@ class one_dim_conduction(physical_models):
         """
         getattr(one_dim_conduction, self.model)(self)
 
-        self.q_conv = (self.h_f * (self.T_f - self.T_inf) + self.h_b * (self.T_b - self.T_inf))/1000
+        self.q_conv_f = (self.h_f * (self.T_f - self.T_inf))/1000
+        self.q_conv_b = (self.h_b * (self.T_b - self.T_inf))/1000
+
+        self.q_conv = self.q_conv_f + self.q_conv_b
 
         self.q_rad = (sigma * self.front_plate.epsilon * (self.T_f**4 - self.T_sur**4) + sigma * self.back_plate.epsilon * (self.T_b**4 - self.T_sur**4))/1000
 
@@ -347,7 +399,9 @@ class one_dim_conduction(physical_models):
                 .. math : q_{net} = \\rho_p \\c_p \\frac{dT_f}{dt} + \\frac{k_{ins}(T_f - T_b)}{L_i} + \\rho_i c_i \\frac{dT_{ins}}{dt}
         """
         T_ins = (self.T_f + self.T_b)/2
+
         self.q_net = (self.front_plate.rCp*self.plate_thickness*np.gradient(self.T_f, self.time) + self.insul.k*(self.T_f - self.T_b)/self.L_i + self.insul.rCp*self.L_i*np.gradient(T_ins, self.time))/1000
+
         return self.q_net
 
     def semi_infinite(self):
@@ -360,10 +414,14 @@ class one_dim_conduction(physical_models):
                 .. math: q_{ins} = \\left( \\frac{k_i \\rho_i c_i}{\\pi} \\right)^2 \\int_0^t \\frac{dT_f(\\lambda)}{d \\lambda} \\frac{d \\lambda}{\\sqrt{t - \\lambda}}
         """
         self.q_st_f = (self.front_plate.rCp * self.plate_thickness * np.gradient(self.T_f, self.time))/1000
+
         self.q_st_ins = np.zeros(len(self.time))
         dT = np.gradient(self.T_f[1:], self.time[1:])
         dt = self.time[1] - self.time[0]
         F1 = 1/np.sqrt(self.time[1:])
+
         self.q_st_ins[1:] = (np.sqrt((self.insul.k*self.insul.rCp)/np.pi)*np.convolve(dT, F1)[:len(dT)]*dt)/1000
+
         self.q_net = self.q_st_f + self.q_st_ins
+        
         return self.q_net

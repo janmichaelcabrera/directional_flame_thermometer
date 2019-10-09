@@ -24,7 +24,7 @@ h_b.custom(C, n)
 
 sensor_1 = dft.one_dim_conduction(Tf, Tb, time, h_f.h, h_b.h, model='one_d_conduction')
 
-sensor_1.plot_incident()
+sensor_1.sensitivity_coefficients(h_f, h_b)
 # sensor_1.save_output(out_directory='data/')
 
 # sensor_1.plot_components()

@@ -125,11 +125,11 @@ class natural_convection:
                 .. math : Nu = 0.54 Ra^0.25
                 .. math : h = \\frac{k_{air} Nu}{L_{ch}}
         """
-        C = 0.54
-        n = 0.25
+        self.C = 0.54
+        self.n = 0.25
         air = air_props(self.T)
-        Ra = 9.81*air.beta*(self.T - self.T_infty)*self.L_ch**3/(air.nu*air.alpha)
-        Nu = C*Ra**n
+        self.Ra = 9.81*air.beta*(self.T - self.T_infty)*self.L_ch**3/(air.nu*air.alpha)
+        Nu = C*self.Ra**n
         self.h = Nu*air.k/self.L_ch
         self.h[np.isnan(self.h)] = 0
         return self.h
@@ -166,9 +166,11 @@ class natural_convection:
                 .. math : Nu = C Ra^n
                 .. math : h = \\frac{k_{air} Nu}{L_{ch}}
         """
+        self.C, self.n = C, n
         air = air_props(self.T)
-        Ra = 9.81*air.beta*(self.T - self.T_infty)*self.L_ch**3/(air.nu*air.alpha)
-        Nu = C*Ra**n
+        self.Ra = 9.81*air.beta*(self.T - self.T_infty)*self.L_ch**3/(air.nu*air.alpha)
+        # self.Ra[np.isnan(self.Ra)] = 0
+        Nu = C*self.Ra**n
         self.h = Nu*air.k/self.L_ch
         self.h[np.isnan(self.h)] = 0
         return self.h
