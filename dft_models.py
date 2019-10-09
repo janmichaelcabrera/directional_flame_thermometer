@@ -59,6 +59,13 @@ class physical_models:
         S_rcpb = (self.dq_drcpb*sigma_rcpb)**2/W
         S_l = (self.dq_dl*sigma_l)**2/W
 
+        ST_eps = 1 - (W - W_eps)/W
+        ST_C = 1 - (W - W_C)/W
+        ST_n = 1 - (W - W_n)/W
+        ST_k = 1 - (W - W_k)/W
+        ST_rcpf = 1 - (W - W_rcpf)/W
+        ST_rcpb = 1 - (W - W_rcpb)/W
+        ST_l = 1 - (W - W_l)/W
         
         plt.figure()
         plt.plot(S_eps, label='dq_deps')
@@ -70,6 +77,17 @@ class physical_models:
         plt.plot(S_l, '--', label='dq_dl')
         plt.legend(loc=0)
         plt.show()
+
+        # plt.figure()
+        # plt.plot(ST_eps, label='dq_deps')
+        # plt.plot(ST_C, label='dq_dC')
+        # plt.plot(ST_n, label='dq_dn')
+        # plt.plot(ST_k, label='dq_dk')
+        # plt.plot(ST_rcpf , label='dq_drcpf')
+        # plt.plot(ST_rcpb, label='dq_drcpb')
+        # plt.plot(ST_l, '--', label='dq_dl')
+        # plt.legend(loc=0)
+        # plt.show()
 
     def plot_temps(self, out_directory=None, *args):
         """
