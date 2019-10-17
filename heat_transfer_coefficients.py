@@ -129,7 +129,7 @@ class natural_convection:
         self.n = 0.25
         air = air_props(self.T)
         self.Ra = 9.81*air.beta*(self.T - self.T_infty)*self.L_ch**3/(air.nu*air.alpha)
-        Nu = C*self.Ra**n
+        Nu = self.C*self.Ra**self.n
         self.h = Nu*air.k/self.L_ch
         self.h[np.isnan(self.h)] = 0
         return self.h
@@ -150,7 +150,7 @@ class natural_convection:
         self.h[np.isnan(self.h)] = 0
         return self.h
 
-    def custom(self, C, n):
+    def custom(self, C, n, param_uncertainty=0.1):
         """
         Parameters
         ----------
@@ -167,6 +167,8 @@ class natural_convection:
                 .. math : h = \\frac{k_{air} Nu}{L_{ch}}
         """
         self.C, self.n = C, n
+        self.sigma_C = C*param_uncertainty
+        self.sigma_n = n*param_uncertainty
         air = air_props(self.T)
         self.Ra = 9.81*air.beta*(self.T - self.T_infty)*self.L_ch**3/(air.nu*air.alpha)
         # self.Ra[np.isnan(self.Ra)] = 0

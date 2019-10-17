@@ -6,6 +6,8 @@ import os, sys
 import matplotlib.pyplot as plt
 from scipy.sparse import diags
 from scipy import linalg
+import scipy.stats as stats
+import pandas as pd
 import matplotlib.style as style
 from .dft_properties import *
 from .heat_transfer_coefficients import *
@@ -21,73 +23,85 @@ class physical_models:
     def __init__(self, *args, **kwargs):
         super(physical_models, self).__init__(*args, **kwargs)
 
-    def sensitivity_coefficients(self, hf, hb):
-        multiplier = 0.1
-        sigma_eps = self.front_plate.epsilon*multiplier
-        sigma_C = hf.C*multiplier
-        sigma_n = hf.n*multiplier
-        sigma_k = self.insul.k*multiplier
-        sigma_rcpf = self.front_plate.rCp*multiplier
-        sigma_rcpb = self.back_plate.rCp*multiplier
-        sigma_l = self.plate_thickness*multiplier
-
-
+    def one_d_uncertainty(self):
         self.dq_deps = - self.front_plate.epsilon**(-2) * ((self.q_net + self.q_conv)*1000)
-        self.dq_dC = 1/(hf.C * self.front_plate.epsilon) * (self.q_conv*1000)
-        self.dq_dn = hf.n/(self.front_plate.epsilon*hf.Ra) * (self.q_conv_f*1000) + hb.n/(self.back_plate.epsilon*hb.Ra) * (self.q_conv_b*1000)
-        self.dq_dn[np.isnan(self.dq_dn)] = 0
         self.dq_dk = 1/(self.insul.k*self.front_plate.epsilon) * (self.q_st_ins*1000)
         self.dq_drcpf = 1/(self.front_plate.epsilon * self.front_plate.rCp) * (self.q_st_f*1000)
         self.dq_drcpb = 1/(self.back_plate.epsilon * self.back_plate.rCp) * (self.q_st_b*1000)
         self.dq_dl = 1/(self.back_plate.epsilon*self.plate_thickness) * ((self.q_st_f + self.q_st_b)*1000)
+        q_net = self.q_net*1000
+        self.L_i = self.L_i + self.sigma_L
+        q_net_dL = self.one_d_conduction()*1000
 
-        W_eps = (self.dq_deps*sigma_eps)**2
-        W_C = (self.dq_dC*sigma_C)**2
-        W_n = (self.dq_dn*sigma_n)**2
-        W_k = (self.dq_dk*sigma_k)**2
-        W_rcpf = (self.dq_drcpf*sigma_rcpf)**2
-        W_rcpb = (self.dq_drcpb*sigma_rcpb)**2
-        W_l = (self.dq_dl*sigma_l)**2
-
-        W = W_eps + W_C + W_n + W_k + W_rcpf + W_rcpb + W_l
-
-        S_eps = (self.dq_deps*sigma_eps)**2/W
-        S_C = (self.dq_dC*sigma_C)**2/W
-        S_n = (self.dq_dn*sigma_n)**2/W
-        S_k = (self.dq_dk*sigma_k)**2/W
-        S_rcpf = (self.dq_drcpf*sigma_rcpf)**2/W
-        S_rcpb = (self.dq_drcpb*sigma_rcpb)**2/W
-        S_l = (self.dq_dl*sigma_l)**2/W
-
-        ST_eps = 1 - (W - W_eps)/W
-        ST_C = 1 - (W - W_C)/W
-        ST_n = 1 - (W - W_n)/W
-        ST_k = 1 - (W - W_k)/W
-        ST_rcpf = 1 - (W - W_rcpf)/W
-        ST_rcpb = 1 - (W - W_rcpb)/W
-        ST_l = 1 - (W - W_l)/W
+        self.dq_dL = (q_net - q_net_dL)/self.sigma_L
         
-        plt.figure()
-        plt.plot(S_eps, label='dq_deps')
-        plt.plot(S_C, label='dq_dC')
-        plt.plot(S_n, label='dq_dn')
-        plt.plot(S_k, label='dq_dk')
-        plt.plot(S_rcpf , label='dq_drcpf')
-        plt.plot(S_rcpb, label='dq_drcpb')
-        plt.plot(S_l, '--', label='dq_dl')
-        plt.legend(loc=0)
-        plt.show()
 
-        # plt.figure()
-        # plt.plot(ST_eps, label='dq_deps')
-        # plt.plot(ST_C, label='dq_dC')
-        # plt.plot(ST_n, label='dq_dn')
-        # plt.plot(ST_k, label='dq_dk')
-        # plt.plot(ST_rcpf , label='dq_drcpf')
-        # plt.plot(ST_rcpb, label='dq_drcpb')
-        # plt.plot(ST_l, '--', label='dq_dl')
-        # plt.legend(loc=0)
-        # plt.show()
+    def sensitivity_coefficients(self, hf, hb, out_directory=None):
+
+        if self.model == 'one_d_conduction':
+            getattr(self, 'one_d_uncertainty')()
+            cond_keys = ['epsilon', 'k', 'rCp_f', 'rCp_b', 'l', 'L_i']
+            self.W_eps = (self.dq_deps*self.sigma_eps/1000)**2
+            self.W_k = (self.dq_dk*self.sigma_k/1000)**2
+            self.W_rcpf = (self.dq_drcpf*self.sigma_rcpf/1000)**2
+            self.W_rcpb = (self.dq_drcpb*self.sigma_rcpb/1000)**2
+            self.W_l = (self.dq_dl*self.sigma_l/1000)**2
+            self.W_L = (self.dq_dL*self.sigma_L/1000)**2
+
+            self.W_cond = np.array([self.W_eps, self.W_k, self.W_rcpf, self.W_rcpb, self.W_l, self.W_L])
+
+        if hasattr(hf, 'C') and hasattr(hf, 'n') and not hasattr(hf, 'm'):
+            conv_keys = ['C', 'n']
+            self.dq_dC = 1/(hf.C * self.front_plate.epsilon) * (self.q_conv*1000)
+            self.dq_dn = hf.n/(self.front_plate.epsilon*hf.Ra) * (self.q_conv_f*1000) + hb.n/(self.back_plate.epsilon*hb.Ra) * (self.q_conv_b*1000)
+            self.dq_dn[np.isnan(self.dq_dn)] = 0
+
+            self.W_C = (self.dq_dC*hf.sigma_C/1000)**2
+            self.W_n = (self.dq_dn*hf.sigma_n/1000)**2
+
+            self.W_conv = np.array([self.W_C, self.W_n])
+
+        self.keys = cond_keys + conv_keys
+        self.W_model = np.row_stack((self.W_cond, self.W_conv))
+
+        self.S = self.W_model/self.W_model.sum(axis=0)
+        self.S_mean = pd.DataFrame(data=self.S.mean(axis=1)[None], columns=self.keys)
+        self.sigma_model = np.sqrt(self.W_model.sum(axis=0))
+
+        if not out_directory:
+            print(self.S_mean)
+        else:
+            if os.path.isdir(out_directory) == True:
+                pass
+            else:
+                os.mkdir(out_directory)
+            self.S_mean.to_csv(out_directory+'sensitivity_coefficients.csv')
+
+    def plot_sensitivity_coefficients(self, out_directory=None):
+        """
+        Notes
+        ----------
+            This method plots the sensitivity coefficients as a function of time
+        """
+        if not hasattr(self, 'S'):
+            raise ValueError('Run sensitivity_coefficients method prior to plotting')
+
+        ax = plt.subplot(111)
+        for s, s_coeff in enumerate(self.S):
+            plt.plot(self.time, s_coeff, label=self.keys[s])
+        box = ax.get_position()
+        ax.set_position([box.x0, box.y0, box.width*0.8, box.height])
+        ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+        if not out_directory:
+            plt.show()
+            plt.close()
+        else:
+            if os.path.isdir(out_directory) == True:
+                pass
+            else:
+                os.mkdir(out_directory)
+            plt.savefig(out_directory+'sensitivity_coefficients.pdf')
+            plt.close()
 
     def plot_temps(self, out_directory=None, *args):
         """
@@ -195,8 +209,76 @@ class physical_models:
             plt.savefig(out_directory+'incident_heat_flux.pdf')
             plt.close()
 
-    def plot_uncertainties(self):
-        return 0
+    def plot_uncertainties(self, out_directory=None):
+        """
+        Notes
+        ----------
+            This method plots the incident heat flux and its uncertainty for a DFT (Uncertainty is estimated using a single term Taylor Series expansion)
+        """
+
+        if not hasattr(self, 'sigma_model'):
+            raise ValueError('Run sensitivity_coefficients method prior to plotting')
+
+        y1 = self.q_inc - 1.96*self.sigma_model
+        y2 = self.q_inc + 1.96*self.sigma_model
+        
+        ax = plt.subplot(111)
+        plt.plot(self.time, self.q_inc, label='Incident Flux')
+        plt.fill_between(x=self.time, y1=y1, y2=y2, color='grey')
+        plt.xlabel('Time (s)')
+        plt.ylabel('Heat Flux (kW/m$^2$)')
+        box = ax.get_position()
+        ax.set_position([box.x0, box.y0, box.width*0.8, box.height])
+        ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+        if not out_directory:
+            plt.show()
+            plt.close()
+        else:
+            if os.path.isdir(out_directory) == True:
+                pass
+            else:
+                os.mkdir(out_directory)
+            plt.savefig(out_directory+'flux_uncertainty.pdf')
+            plt.close()
+
+    def plot_uncertainties_mcmc(self, out_directory=None, samples=200):
+        q_inc = self.q_inc
+        mcmc_eps = self.front_plate.epsilon*stats.norm.rvs(1, 0.1**2, size=samples)
+        mcmc_k = self.insul.k*stats.norm.rvs(1, 0.25**2, size=samples)
+        mcmc_rcpf = self.front_plate.rCp.mean()*stats.norm.rvs(1, 0.05**2, size=samples)
+        mcmc_rcpb = self.back_plate.rCp.mean()*stats.norm.rvs(1, 0.05**2, size=samples)
+        mcmc_l = self.plate_thickness*stats.norm.rvs(1, 0.05, size=samples)
+        mcmc_L = self.L_i*stats.norm.rvs(1, 0.05, size=samples)
+
+        # plt.figure()
+        ax = plt.subplot(111)
+        for i in range(samples):
+            self.front_plate.epsilon = mcmc_eps[i]
+            self.insul.k = mcmc_k[i]
+            self.front_plate.rCp = mcmc_rcpf[i]
+            self.back_plate.rCp = mcmc_rcpb[i]
+            self.plate_thickness = mcmc_l[i]
+            self.L_i = mcmc_L[i]
+            
+            self.incident_heat_flux()
+            plt.plot(self.time, self.q_inc, color='grey', linewidth=1)
+            # q_temp = 
+        plt.plot(self.time, q_inc, label='Incident Flux')
+        plt.xlabel('Time (s)')
+        plt.ylabel('Heat Flux (kW/m$^2$)')
+        box = ax.get_position()
+        ax.set_position([box.x0, box.y0, box.width*0.8, box.height])
+        ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+        if not out_directory:
+            plt.show()
+            plt.close()
+        else:
+            if os.path.isdir(out_directory) == True:
+                pass
+            else:
+                os.mkdir(out_directory)
+            plt.savefig(out_directory+'flux_uncertainty.pdf')
+            plt.close()
 
     def save_output(self, out_directory=None):
         """
@@ -307,6 +389,14 @@ class one_dim_conduction(physical_models):
 
         if run_on_init:
             self.q_inc = one_dim_conduction.incident_heat_flux(self)
+
+        ### Parameter Uncertainties
+        self.sigma_eps = self.front_plate.epsilon*0.1 # Sandia Report
+        self.sigma_k = self.insul.k*0.25 # Sandia Report
+        self.sigma_rcpf = self.front_plate.rCp*0.05 # Sandia Report
+        self.sigma_rcpb = self.back_plate.rCp*0.05 # Sandia Report
+        self.sigma_l = self.plate_thickness*0.05 # Measurements
+        self.sigma_L = self.L_i*0.05 # Measurements
 
     def incident_heat_flux(self):
         """
