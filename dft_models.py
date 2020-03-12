@@ -24,6 +24,32 @@ class physical_models:
         super(physical_models, self).__init__(*args, **kwargs)
 
     def one_d_uncertainty(self):
+        """
+        Attributes
+        ----------
+            dq_deps: float (vector)
+                Partial derivative of model with respect to epsilon
+                .. math :: \\frac{\\partial q_{inc,r}}{\\partial \\varepsilon} = - \\varepsilon^{-2} \\left[ q_{net} + q_{conv} \\right]
+
+            dq_dk: float (vector)
+                Partial derivative of model with respect to insulation thermal conductivity
+                .. math :: \\partial q_{inc,r}}{\\partial k_{ins}}=\\frac{1}{k_{ins} \\varepsilon} \\left[q_{st,ins} \\right]
+
+            dq_drcpf: float (vector)
+                Partial derivative of model with respect to volumetric heat capacity
+                .. math :: \\frac{\\partial q_{inc,r}}{\\partial \\rho_s c_{p,sf}} = \\frac{1}{\\varepsilon \\rho_s c_{p,sf}} \\left[q_{st,f} \\right]
+
+            dq_dl: float (vector)
+                Partial derivative of model with respect to plate thickness
+                .. math :: \\partial q_{inc,r}}{\\partial l_s}=\\frac{1}{\\varepsilon l_s} \\left[ q_{st,f} + q_{st,b} \\right]
+
+            L_i: float (scalar)
+                Insulation thickness
+
+            dq_dL: float (scalar)
+                Partial derivative of model with respect to insulation thickness
+                .. math :: \\frac{\\partial q_{inc,r}}{\\partial L} \\approx \\frac{q_{net}(L) - q_{net}(L+\\delta L)}{\\delta L}
+        """
         self.dq_deps = - self.front_plate.epsilon**(-2) * ((self.q_net + self.q_conv)*1000)
         self.dq_dk = 1/(self.insul.k*self.front_plate.epsilon) * (self.q_st_ins*1000)
         self.dq_drcpf = 1/(self.front_plate.epsilon * self.front_plate.rCp) * (self.q_st_f*1000)
@@ -37,7 +63,11 @@ class physical_models:
         
 
     def sensitivity_coefficients(self, hf, hb, out_directory=None):
-
+        """
+        Notes
+        ----------
+            Caclulates first order sensitivity coefficients for 1D conduction model
+        """
         if self.model == 'one_d_conduction':
             getattr(self, 'one_d_uncertainty')()
             cond_keys = ['epsilon', 'k', 'rCp_f', 'rCp_b', 'l', 'L_i']
@@ -84,7 +114,7 @@ class physical_models:
             This method plots the sensitivity coefficients as a function of time
         """
         if not hasattr(self, 'S'):
-            raise ValueError('Run sensitivity_coefficients method prior to plotting')
+            raise NameError('Run sensitivity_coefficients method prior to plotting')
 
         ax = plt.subplot(111)
         for s, s_coeff in enumerate(self.S):
@@ -215,9 +245,8 @@ class physical_models:
         ----------
             This method plots the incident heat flux and its uncertainty for a DFT (Uncertainty is estimated using a single term Taylor Series expansion)
         """
-
         if not hasattr(self, 'sigma_model'):
-            raise ValueError('Run sensitivity_coefficients method prior to plotting')
+            raise NameError('Run sensitivity_coefficients method prior to plotting')
 
         y1 = self.q_inc - 1.96*self.sigma_model
         y2 = self.q_inc + 1.96*self.sigma_model
@@ -242,6 +271,11 @@ class physical_models:
             plt.close()
 
     def plot_uncertainties_mcmc(self, out_directory=None, samples=200):
+        """
+        Notes
+        ----------
+            This method draws samples of parameters and evaluates the model from these draws and plots the resultant curves
+        """
         q_inc = self.q_inc
         mcmc_eps = self.front_plate.epsilon*stats.norm.rvs(1, 0.1**2, size=samples)
         mcmc_k = self.insul.k*stats.norm.rvs(1, 0.25**2, size=samples)
@@ -262,7 +296,7 @@ class physical_models:
             
             self.incident_heat_flux()
             plt.plot(self.time, self.q_inc, color='grey', linewidth=1)
-            # q_temp = 
+
         plt.plot(self.time, q_inc, label='Incident Flux')
         plt.xlabel('Time (s)')
         plt.ylabel('Heat Flux (kW/m$^2$)')
