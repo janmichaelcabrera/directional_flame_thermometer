@@ -394,6 +394,8 @@ class one_dim_conduction(physical_models):
             self.T_f = T_f
             self.T_b = T_b
 
+        self.T_0 = (T_f[0] + T_b[0])/2
+
         self.time = time
         self.h_f = h_f
         self.h_b = h_b
@@ -404,7 +406,7 @@ class one_dim_conduction(physical_models):
         self.insulation_material = insulation
         self.nodes = nodes
 
-        if not T_inf:
+        if not np.any(T_inf):
             self.T_inf = self.T_f[0]
         else:
             self.T_inf = T_inf
@@ -419,7 +421,7 @@ class one_dim_conduction(physical_models):
         self.back_plate = self.plate_material(self.T_b)
 
         ### Insulation
-        self.insul = self.insulation_material(self.T_inf)
+        self.insul = self.insulation_material(self.T_0)
 
         if run_on_init:
             self.q_inc = one_dim_conduction.incident_heat_flux(self)
@@ -498,7 +500,7 @@ class one_dim_conduction(physical_models):
         # Instantiate implicit model parameters
         delta_x = self.L_i/(self.nodes+1)
         time_steps = len(self.time)
-        T_nodes_i = np.ones((time_steps, self.nodes))*self.T_inf
+        T_nodes_i = np.ones((time_steps, self.nodes))*self.T_0
 
         delta_t = self.time[1] - self.time[0]
 
