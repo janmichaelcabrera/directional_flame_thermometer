@@ -1,11 +1,9 @@
-#!/packages/python/anaconda3/bin python
-
 from __future__ import division
 import numpy as np
 import matplotlib.pyplot as plt
-import os, sys, time
+import os, sys
 sys.path.append('../../')
-import differential_flame_thermometer as dft
+import directional_flame_thermometer as dft
 import pandas as pd
 
 df = pd.read_csv('data/1905-01_10.csv')
@@ -23,10 +21,7 @@ h_b = dft.natural_convection(Tb)
 h_b.custom(C, n)
 
 sensor_1 = dft.one_dim_conduction(Tf, Tb, time, h_f.h, h_b.h, model='one_d_conduction')
-# print(sensor_1.q_net.shape)
-sensor_1.sensitivity_coefficients(h_f, h_b, out_directory='data/')
-# sensor_1.plot_uncertainties()
-sensor_1.plot_uncertainties_mcmc()
-# sensor_1.save_output(out_directory='data/')
 
-# sensor_1.plot_components()
+plt.figure()
+plt.plot(time, sensor_1.q_inc)
+plt.show()
