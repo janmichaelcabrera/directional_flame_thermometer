@@ -181,7 +181,7 @@ class one_dim_conduction(physical_models):
             self.T_f = T_f
             self.T_b = T_b
 
-        self.T_0 = (T_f[0] + T_b[0])/2
+        self.T_0 = (self.T_f[0] + self.T_b[0])/2
 
         self.time = time
         self.h_f = h_f
